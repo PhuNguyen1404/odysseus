@@ -1294,13 +1294,17 @@ def _apply_local_qwen_thinking_mode(
     """
 
     mode = _normalize_thinking_mode(thinking_mode)
-    if not mode:
-        return
     # Ollama /v1 ignores chat_template_kwargs and "think"; reasoning_effort is its
-    # only switch, and it applies to any thinking model regardless of name.
+    # only switch, for any thinking model regardless of name. Unspecified means off,
+    # matching the think=False default above: some harness paths pass no mode, and
+    # Ollama's own default (thinking on) swallows tool calls inside the reasoning.
     if _is_ollama_openai_compat_url(url):
-        if mode == "off":
+        if mode == "on":
+            payload.pop("reasoning_effort", None)
+        else:
             payload["reasoning_effort"] = "none"
+        return
+    if not mode:
         return
     if not is_local_endpoint(url):
         return

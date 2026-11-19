@@ -116,9 +116,15 @@ def test_ollama_openai_compat_thinking_off_uses_reasoning_effort_for_any_model()
     llm_core._apply_local_qwen_thinking_mode(payload, url, "bonsai-2:27b", "off")
     assert payload == {"reasoning_effort": "none"}
 
+    # Harness paths that pass no mode must not fall back to Ollama's thinking-on default.
     payload = {}
-    llm_core._apply_local_qwen_thinking_mode(payload, url, "bonsai-2:27b", "on")
-    assert payload == {}
+    llm_core._apply_local_qwen_thinking_mode(payload, url, "bonsai-2:27b", None)
+    assert payload == {"reasoning_effort": "none"}
+
+    # An explicit "on" wins over the tool-call suppression set earlier in the builder.
+    payload = {"think": False, "reasoning_effort": "none"}
+    llm_core._apply_local_qwen_thinking_mode(payload, url, "qwen3:14b", "on")
+    assert "reasoning_effort" not in payload
 
 
 def test_ollama_reasoning_levels_follow_thinking_capability(monkeypatch):

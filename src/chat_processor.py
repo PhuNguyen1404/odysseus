@@ -365,6 +365,10 @@ class ChatProcessor:
             "role": "system",
             "content": UNTRUSTED_CONTEXT_POLICY,
         })
+        preface.append({
+            "role": "system",
+            "content": "Reply in the language of the user's latest message unless they ask for another language.",
+        })
 
         if character_name and persona_memory:
             preface.append(untrusted_context_message(
