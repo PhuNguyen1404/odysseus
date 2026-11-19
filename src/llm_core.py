@@ -1267,6 +1267,12 @@ def _apply_local_qwen_thinking_mode(
     mode = _normalize_thinking_mode(thinking_mode)
     if not mode:
         return
+    # Ollama /v1 ignores chat_template_kwargs and "think"; reasoning_effort is its
+    # only switch, and it applies to any thinking model regardless of name.
+    if _is_ollama_openai_compat_url(url):
+        if mode == "off":
+            payload["reasoning_effort"] = "none"
+        return
     if not is_local_endpoint(url):
         return
     if not (_supports_thinking(model) or _is_odysseus_qwen_tool_router_model(model)):
@@ -2832,6 +2838,7 @@ async def llm_call_async(
             and not _is_odysseus_qwen_tool_router_model(model)
         ):
             payload["think"] = False
+            payload["reasoning_effort"] = "none"  # current Ollama /v1 ignores "think"
         if provider == "mistral" and _supports_thinking(model):
             payload["reasoning_effort"] = _MISTRAL_REASONING_EFFORT
         _apply_local_cache_affinity(payload, url, session_id)
@@ -3105,6 +3112,7 @@ async def _stream_llm_inner(url: str, model: str, messages: List[Dict], temperat
             and not _is_odysseus_qwen_tool_router_model(model)
         ):
             payload["think"] = False
+            payload["reasoning_effort"] = "none"  # current Ollama /v1 ignores "think"
         _apply_local_cache_affinity(payload, url, session_id)
         model_customization.apply_sampling(payload, url, model)
         _apply_local_generation_stability(payload, target_url, model)
