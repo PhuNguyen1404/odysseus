@@ -109,14 +109,16 @@ def test_composer_reasoning_effort_ui_markup():
     assert 'id="reasoning-effort-current"' in html
     assert 'id="reasoning-effort-menu"' in html
     assert 'title="Reasoning effort"' in html
-    assert 'class="reasoning-effort-prefix">Reasoning effort</span>' in html
+    assert 'class="reasoning-effort-prefix">Reasoning</span>' in html
+    # The control's home is the composer, next to the Agent/Chat toggle; the
+    # Chat Context popup borrows it while open and returns it on close.
+    right = html.index('<div class="chat-input-right">')
+    assert right < html.index('id="reasoning-effort-home"') < html.index('<div class="mode-toggle">', right)
     # CSS classes
     assert ".reasoning-effort-wrap" in css
     assert ".reasoning-effort-btn" in css
     assert ".reasoning-effort-menu" in css
     assert ".reasoning-effort-option" in css
-    # The control lives in the Chat Context popup, where the prefix is the
-    # row label rather than chat-bar text hidden at narrow widths.
     assert ".chat-context-popup .reasoning-effort-prefix {" in css
 
 

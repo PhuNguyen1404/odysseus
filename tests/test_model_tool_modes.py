@@ -121,6 +121,44 @@ def test_ollama_openai_compat_thinking_off_uses_reasoning_effort_for_any_model()
     assert payload == {}
 
 
+def test_ollama_reasoning_levels_follow_thinking_capability(monkeypatch):
+    from src.chatgpt_subscription import validate_reasoning_effort
+
+    calls = []
+
+    class FakeResponse:
+        def __init__(self, caps):
+            self._caps = caps
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"capabilities": self._caps}
+
+    def fake_post(url, json, timeout):
+        calls.append((url, json["model"]))
+        if json["model"] == "down:1b":
+            raise OSError("ollama restarting")
+        return FakeResponse(["completion", "thinking"] if json["model"] == "think:9b" else ["completion"])
+
+    monkeypatch.setattr(llm_core, "_ollama_thinking_models", {})
+    monkeypatch.setattr(llm_core.httpx, "post", fake_post)
+    url = "http://127.0.0.1:11434/v1/chat/completions"
+
+    assert llm_core.ollama_reasoning_metadata(url, "think:9b") == llm_core.OLLAMA_REASONING_METADATA
+    assert llm_core.ollama_reasoning_metadata(url, "think:9b") == llm_core.OLLAMA_REASONING_METADATA
+    assert calls == [("http://127.0.0.1:11434/api/show", "think:9b")]  # cached after first probe
+    assert llm_core.ollama_reasoning_metadata(url, "plain:3b") is None
+    assert llm_core.ollama_reasoning_metadata(url, "down:1b") is None
+    assert "down:1b" not in llm_core._ollama_thinking_models  # failures are retried later
+    assert llm_core.ollama_reasoning_metadata("https://api.openai.com/v1", "think:9b") is None
+
+    assert validate_reasoning_effort("think:9b", "high") == "high"
+    assert validate_reasoning_effort("think:9b", "ultra") is None
+    assert validate_reasoning_effort("plain:3b", "high") is None
+
+
 def test_named_schema_profile_aliases_are_accepted_by_settings_api():
     assert model_routes._normalize_model_tool_mode("regular") == "full"
     assert model_routes._normalize_model_tool_mode("odysseus_compact") == "compact"

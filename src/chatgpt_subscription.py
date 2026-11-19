@@ -231,7 +231,8 @@ def validate_reasoning_effort(model: str, effort: Optional[str]) -> Optional[str
     effort_clean = str(effort).strip().lower()
     if effort_clean in {"", "default"}:
         return None
-    meta = get_chatgpt_model_metadata(model)
+    from src.llm_core import cached_ollama_reasoning_metadata
+    meta = get_chatgpt_model_metadata(model) or cached_ollama_reasoning_metadata(model)
     if not meta:
         return None
     supported = [lvl.lower() for lvl in meta.get("supported_reasoning_levels", [])]

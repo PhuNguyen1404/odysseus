@@ -746,6 +746,35 @@ def _is_ollama_openai_compat_url(url: str) -> bool:
     return local_ollama_host and (path == "/v1" or path.startswith("/v1/"))
 
 
+# Reasoning-picker metadata for Ollama /v1 models that report the "thinking"
+# capability. "Default" in the picker means thinking off (fastest).
+OLLAMA_REASONING_METADATA = {
+    "default_reasoning_level": "off",
+    "supported_reasoning_levels": ["low", "medium", "high"],
+}
+_ollama_thinking_models: Dict[str, bool] = {}
+
+
+def ollama_reasoning_metadata(url: str, model: str) -> Optional[Dict]:
+    """Probe (once per model) whether a local Ollama /v1 model can think."""
+    if not model or not _is_ollama_openai_compat_url(url):
+        return None
+    if model not in _ollama_thinking_models:
+        parsed = urlparse(url)
+        try:
+            r = httpx.post(f"{parsed.scheme}://{parsed.netloc}/api/show", json={"model": model}, timeout=3)
+            r.raise_for_status()
+            _ollama_thinking_models[model] = "thinking" in (r.json().get("capabilities") or [])
+        except Exception:
+            return None  # transient: retry on the next listing instead of caching a miss
+    return OLLAMA_REASONING_METADATA if _ollama_thinking_models[model] else None
+
+
+def cached_ollama_reasoning_metadata(model: str) -> Optional[Dict]:
+    """Name-only lookup for validators that have no endpoint URL."""
+    return OLLAMA_REASONING_METADATA if _ollama_thinking_models.get(model) else None
+
+
 def _ollama_api_root(url: str) -> str:
     """Return a native Ollama API root such as https://ollama.com/api."""
     url = (url or "").strip().rstrip("/")
@@ -3121,6 +3150,9 @@ async def _stream_llm_inner(url: str, model: str, messages: List[Dict], temperat
         _apply_deepseek_v4_reasoning_defaults(
             payload, target_url, model, thinking_mode
         )
+        if _is_ollama_openai_compat_url(target_url):
+            # The chat-bar reasoning picker overrides the thinking-off default.
+            _apply_explicit_nonstream_reasoning_effort(payload, reasoning_effort)
         _scrub_openai_chat_tool_reasoning(payload, target_url, model)
         h = _provider_headers(provider, headers)
         if provider == "copilot":

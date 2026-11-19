@@ -1758,8 +1758,9 @@ def setup_model_routes(model_discovery):
                         curated.append(m)
                 models_metadata = {}
                 from src.chatgpt_subscription import get_chatgpt_model_metadata
+                from src.llm_core import ollama_reasoning_metadata
                 for mid in list(curated) + list(extra):
-                    meta = get_chatgpt_model_metadata(mid)
+                    meta = get_chatgpt_model_metadata(mid) or ollama_reasoning_metadata(chat_url, mid)
                     if meta:
                         models_metadata[mid] = meta
                 items.append({
