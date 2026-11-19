@@ -109,6 +109,18 @@ def test_ajax_c375_defaults_to_compact_and_forces_thinking_off(monkeypatch):
     assert payload["chat_template_kwargs"] == {"enable_thinking": False}
 
 
+def test_ollama_openai_compat_thinking_off_uses_reasoning_effort_for_any_model():
+    url = "http://127.0.0.1:11434/v1/chat/completions"
+    # bonsai-2 is not in _THINKING_MODEL_PATTERNS; Ollama still needs the switch.
+    payload = {}
+    llm_core._apply_local_qwen_thinking_mode(payload, url, "bonsai-2:27b", "off")
+    assert payload == {"reasoning_effort": "none"}
+
+    payload = {}
+    llm_core._apply_local_qwen_thinking_mode(payload, url, "bonsai-2:27b", "on")
+    assert payload == {}
+
+
 def test_named_schema_profile_aliases_are_accepted_by_settings_api():
     assert model_routes._normalize_model_tool_mode("regular") == "full"
     assert model_routes._normalize_model_tool_mode("odysseus_compact") == "compact"
